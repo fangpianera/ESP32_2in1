@@ -59,10 +59,13 @@ EVA_F1_ESP32/
 
 ```powershell
 # 1. 激活工具链（pwsh 7 下不要用 export.ps1，它 dot-source 会报错）
-. "C:\Espressif\tools\Microsoft.v5.5.6.PowerShell_profile.ps1"
+#    ESP-IDF 工具链与源码均已迁到 D 盘（原 C:\Espressif 已清空）：
+#      IDF_TOOLS_PATH = D:\Espressif\tools
+#      IDF_PATH       = D:\Espressif\esp\v5.5.6\esp-idf
+. "D:\Espressif\tools\Microsoft.v5.5.6.PowerShell_profile.ps1"
 
 # 2. C 盘紧张时把临时目录指到 D 盘，并关掉 ccache
-$env:TMP="D:\nav_tmp"; $env:TEMP="D:\nav_tmp"
+$env:TMP="D:\nav_tmp2"; $env:TEMP="D:\nav_tmp2"
 $env:CCACHE_DISABLE="1"; $env:IDF_CCACHE_ENABLE="0"
 
 # 3. 编译（首次需联网拉 managed_components，约 233 MB）
