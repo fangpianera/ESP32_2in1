@@ -1,0 +1,24 @@
+## IDF Component Manager Manifest File
+## 版本锚点与官方 1.75C 示例保持一致（examples/esp-idf/02_lvgl_demo_v9, 04_Immersive_block）
+dependencies:
+  idf: ">=5.5.0"
+
+  # waveshare/esp32_s3_touch_amoled_1_75c 已 vendor 到 firmware/components/
+  # 原因：需打开 io_config.flags.psram_dma_direct 并把 buffer_height 取为 64 字节对齐，
+  #      否则 LVGL 帧缓冲（PSRAM）每块传输都在内部 RAM 复制，Wi-Fi 起来后 434KB 分配必败。
+  # waveshare/esp32_s3_touch_amoled_1_75c:
+  #   version: "^3.0.0"
+
+  waveshare/qmi8658:
+    version: "^2.0.0"
+
+  lvgl/lvgl:
+    version: "9.5.0"
+    public: true
+
+  # espressif/esp_littlefs 在中国镜像 components-file.espressif.com.cn 上返回 403（实测），
+  # 因此改为工程内 vendor：firmware/components/esp_littlefs
+  # （joltwallet/esp_littlefs v1.14.8 + littlefs v2.9.3，已随工程提供，无需联网）
+  # 若你的网络能直连官方源，也可取消注释下面两行、并删除 firmware/components/esp_littlefs
+  # espressif/esp_littlefs:
+  #   version: "^1.14.0"

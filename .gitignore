@@ -1,0 +1,59 @@
+# ---------- ESP-IDF 构建产物 ----------
+build/
+build*/
+*.o
+*.obj
+*.a
+*.su
+*.map
+*.elf
+*.lst
+
+# ESP-IDF 生成/本地配置
+sdkconfig
+sdkconfig.old
+sdkconfig.cmake
+sdkconfig.h
+.flash_args
+flasher_args.json
+project_description.json
+compile_commands.json
+
+# 由 idf_component_manager 拉取的依赖（保留 dependencies.lock）
+managed_components/
+
+# ---------- 二进制产物：只放行 release/ ----------
+*.bin
+!release/**/*.bin
+
+# ---------- 日志与调试残留 ----------
+*.log
+*.txt.bak
+coredump*.bin
+core*.elf
+*.core
+
+# ---------- 鸿蒙 / iOS 构建 ----------
+node_modules/
+.hvigor/
+oh_modules/
+build-log.txt
+*.hvigor
+DerivedData/
+*.xcuserdatad
+*.xcodeproj/xcuserdata/
+*.ipa
+
+# ---------- 编辑器和系统 ----------
+.vscode/
+.idea/
+.vs/
+Thumbs.db
+desktop.ini
+.DS_Store
+
+# ---------- 本地临时 ----------
+tmp/
+*.tmp
+*.bak
+*.zip

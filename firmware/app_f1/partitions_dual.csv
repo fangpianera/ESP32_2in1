@@ -1,0 +1,31 @@
+# EVA 双程序分区表（32 MB Flash）
+#
+# 设计：三个 app + 一个导航备份槽 + 两套独立 storage
+#   app_sel   = factory 槽：启动选择器（每次上电第一站）
+#   app_nav   = ota_0    ：EVA 导航
+#   app_navbk = ota_1    ：导航备份（保留原来的 A/B 回滚能力）
+#   app_f1    = ota_2    ：F1 看板
+#
+# 启动约定（关键）：
+#   - 选择器点选后写 otadata 指向目标槽并重启；
+#   - 导航 / F1 启动后第一件事把 otadata 写回 factory，
+#     因此下一次断电重启必然回到选择界面。
+#
+# 命名约束：
+#   storage 这个名字不能改 —— 导航侧 littlefs 的 partition label 写死为 "storage"；
+#   F1 用 storage_f1，避免两套程序互擦文件系统。
+#
+# 对齐约束（gen_esp32part 强制）：
+#   app 分区必须 64 KB（0x10000）对齐；data 分区 4 KB 对齐。
+#
+# Name,       Type, SubType,  Offset,     Size,      Flags
+nvs,          data, nvs,      0x9000,     0x6000,
+otadata,      data, ota,      0xf000,     0x2000,
+phy_init,     data, phy,      0x11000,    0x1000,
+app_sel,      app,  factory,  0x20000,    0x300000,
+app_nav,      app,  ota_0,    0x320000,   0x500000,
+app_navbk,    app,  ota_1,    0x820000,   0x500000,
+app_f1,       app,  ota_2,    0xD20000,   0x500000,
+storage,      data, spiffs,   0x1220000,  0xA00000,
+storage_f1,   data, spiffs,   0x1C20000,  0x200000,
+coredump,     data, coredump, 0x1E20000,  0x10000,

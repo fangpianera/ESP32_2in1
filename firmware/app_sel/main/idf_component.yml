@@ -1,0 +1,11 @@
+## IDF Component Manager Manifest File
+## 选择器只用显示 + 触摸，不要 IMU / littlefs / 字库，依赖面尽量小
+dependencies:
+  idf: ">=5.5.0"
+
+  # BSP 已 vendor 到 components/（与导航同一份，含 psram_dma_direct 与 32 行局部刷新补丁）
+  # waveshare/esp32_s3_touch_amoled_1_75c
+
+  lvgl/lvgl:
+    version: "9.5.0"
+    public: true

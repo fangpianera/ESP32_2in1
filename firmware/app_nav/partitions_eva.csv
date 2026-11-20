@@ -1,0 +1,13 @@
+# EVA-Nav 分区表（32MB Flash 版）
+# 布局理由：
+#  - A/B 双 OTA：任一镜像写坏都能回滚（doc §10）
+#  - storage 20MB 给 LittleFS：完整 CJK 字库(≈6~9MB) + 96x96 图标 + 路线缓存
+#  - coredump 64KB：HardFault 现场取证，别指望串口能在现场接上
+# Name,     Type, SubType,  Offset,     Size,       Flags
+nvs,        data, nvs,      0x9000,     0x6000,
+otadata,    data, ota,      0xf000,     0x2000,
+phy_init,   data, phy,      0x11000,    0x1000,
+ota_0,      app,  ota_0,    0x20000,    0x500000,
+ota_1,      app,  ota_1,    0x520000,   0x500000,
+storage,    data, spiffs,   0xA20000,   0x1400000,
+coredump,   data, coredump, 0x1E20000,  0x10000,

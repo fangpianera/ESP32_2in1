@@ -1,0 +1,11 @@
+{
+  "string": [
+    { "name": "module_desc", "value": "EVA Nav 鸿蒙伴生端：下发步行路线 + 30s 定位应答" },
+    { "name": "EntryAbility_desc", "value": "EVA Nav" },
+    { "name": "EntryAbility_label", "value": "EVA Nav" },
+    { "name": "reason_location", "value": "用于向导航板提供实时位置" },
+    { "name": "reason_location_bg", "value": "锁屏时仍需向导航板应答定位" },
+    { "name": "reason_motion", "value": "用于辅助判定步行状态" },
+    { "name": "reason_bluetooth", "value": "用于连接导航板并下发路线、应答定位" }
+  ]
+}
