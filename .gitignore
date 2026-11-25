@@ -63,3 +63,7 @@ secrets.h
 firmware/app_f1/main/secrets.h
 .env
 *.local.ets
+
+# ---------- 鸿蒙签名配置（内含加密后的 keystore 密码） ----------
+.sign/
+mobile/harmony/.sign/
