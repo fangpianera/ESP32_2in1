@@ -1,1 +1,8 @@
-a36d1ac62f83deb9b03cac85db953a62  app_f1\lvgl_demo_v9.bin
+c9464e43b0313b283c93b596ffb7fe13  flash_all.ps1
+4378fd1e61e0baa2c60ca56dc9ba9bc9  partition-table.bin
+4d0b2d39d61a500b8326f7378ce4fc57  app_moto/motonav_slot3m.bin
+84d04c9d6cc8ef35bf825d51a5277699  ota_data_initial.bin
+919b76676aeefabba7a7cdb71502f8fe  app_nav/EVA_Nav.bin
+5259134357374404844fe6380b9d6b49  app_sel/EVA_Selector.bin
+56e009540ae44412ff3bf9caa3b61ac8  app_f1/lvgl_demo_v9.bin
+cf60e5334ebf432d2b62673443cbd28f  bootloader.bin

@@ -211,13 +211,17 @@ static bool s_ap_netif_created = false;
 #define WIFI_CONNECT_TIMEOUT_MS  25000   /* 单轮尝试上限；超时即掐断并换下一个 AP */
 
 /* ---- 固定内嵌 AP 列表（配网已关闭）----
- * 按用户要求把两组凭据写死在程序里：先试 "REDACTED_SSID"，45 秒连不上就换 "REDACTED_SSID"，
- * 两个都失败再从头轮换。不再起 softAP / 配网页。 */
+ * 凭据不进仓库：真实值放在同目录 secrets.h（本地文件，.gitignore 已忽略），
+ * 仓库里只有 secrets.example.h 的占位模板；没有 secrets.h 时自动退回模板。
+ * 顺序即尝试顺序，一轮 25 s 超时后轮到下一组，全部失败再从头循环。 */
+#if __has_include("secrets.h")
+#include "secrets.h"
+#else
+#include "secrets.example.h"
+#endif
+
 typedef struct { const char *ssid; const char *pass; } f1_builtin_ap_t;
-static const f1_builtin_ap_t s_builtin_aps[] = {
-    { "REDACTED_SSID",      "***REDACTED***" },
-    { "REDACTED_SSID", "***REDACTED***"   },
-};
+static const f1_builtin_ap_t s_builtin_aps[] = { F1_WIFI_AP_LIST };
 #define F1_AP_COUNT ((int)(sizeof(s_builtin_aps) / sizeof(s_builtin_aps[0])))
 static int s_ap_idx = 0;
 
@@ -455,8 +459,8 @@ static void wifi_apply_ap(int idx)
     wifi_config_t sta = {0};
     snprintf((char *)sta.sta.ssid, sizeof(sta.sta.ssid), "%s", s_builtin_aps[s_ap_idx].ssid);
     snprintf((char *)sta.sta.password, sizeof(sta.sta.password), "%s", s_builtin_aps[s_ap_idx].pass);
-    /* 默认 WIFI_FAST_SCAN 只盯上一个 AP 的信道，轮换到另一个 AP 时经常扫不到
-     * （日志里 REDACTED_SSID 45 秒全程 "Haven't to connect"）。改成全信道扫描 + 按信号排序。 */
+    /* 默认 WIFI_FAST_SCAN 只盯上一个 AP 的信道，轮换到另一组凭据时经常扫不到
+     * （日志里备用 AP 45 秒全程 "Haven't to connect"）。改成全信道扫描 + 按信号排序。 */
     sta.sta.scan_method = WIFI_ALL_CHANNEL_SCAN;
     sta.sta.sort_method = WIFI_CONNECT_AP_BY_SIGNAL;
     sta.sta.threshold.rssi = -85;      /* 低于 -85 的弱信号宁可不连，免得连上就掉 */
@@ -507,7 +511,7 @@ static void wifi_supervisor_task(void *arg)
 }
 
 /* 诊断用：启动时扫一圈，把周围能看到的每个 AP 打到串口。
- * 目的是搞清 "扫不到 REDACTED_SSID" 到底是信号太弱、名称不对，还是根本没开 2.4GHz。
+ * 目的是搞清 "扫不到备用 AP" 到底是信号太弱、名称不对，还是根本没开 2.4GHz。
  * 只做一次阻塞扫描（几秒），之后正常走连接流程。 */
 static void wifi_scan_dump(void)
 {
@@ -558,7 +562,7 @@ void f1_wifi_init(void)
     /* 配网已关闭：直接使用内嵌 AP 列表，第一组失败由 supervisor 轮换到第二组 */
     esp_wifi_set_mode(WIFI_MODE_STA);
     esp_wifi_start();
-    wifi_scan_dump();      /* 诊断：打印附近 AP 列表（几秒，判断 814/REDACTED_SSID 是否可见） */
+    wifi_scan_dump();      /* 诊断：打印附近 AP 列表（几秒，判断内嵌 AP 是否可见） */
     wifi_apply_ap(0);
     ESP_LOGI(TAG, "WiFi: 内嵌 AP 列表模式（配网已关闭，共 %d 组）", F1_AP_COUNT);
 

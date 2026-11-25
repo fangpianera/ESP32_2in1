@@ -18,9 +18,14 @@ export class AppCfg {
   /**
    * 高德「Web 服务 API」Key（注意不是 iOS/鸿蒙 SDK 的 Key，两者不通用）。
    * 申请：open.amap.com → 控制台 → 应用管理 → 创建应用（服务平台选「Web服务」）
-   * 拿到后只改这一行，重新运行即可。
+   *
+   * 仓库里只保留占位符，真实 Key 不要提交。本机用法：
+   *   1) 改成你自己的 Key；
+   *   2) `git update-index --assume-unchanged mobile/harmony/entry/src/main/ets/common/Config.ets`
+   *      让 git 不再跟踪这处改动（要撤销跟踪用 --no-assume-unchanged）。
+   * 值为 PASTE_ 开头时，EvaNavCoordinator 会自动跳过在线底图，只画离线折线。
    */
-  static readonly AMAP_WEB_KEY: string = 'REDACTED_AMAP_KEY';
+  static readonly AMAP_WEB_KEY: string = 'PASTE_AMAP_WEB_KEY';
 
   /** 无 GPS 时的手动兜底身高（cm），0 表示不启用 */
   static readonly MANUAL_HEIGHT_CM: number = 172;

@@ -6,11 +6,15 @@
 """
 import json
 import math
+import os
 import sys
 import urllib.parse
 import urllib.request
 
-KEY = "REDACTED_AMAP_KEY"
+# 高德 Web 服务 Key 不进仓库：export AMAP_WEB_KEY=xxxx（或写进本地 .env 再 source）
+KEY = os.environ.get("AMAP_WEB_KEY", "")
+if not KEY:
+    sys.exit("缺少高德 Key：先设置环境变量 AMAP_WEB_KEY 再运行本脚本。")
 W, H = 900, 600          # 与 MapPreview.W / H 一致
 PAD = 56
 

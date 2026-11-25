@@ -57,3 +57,9 @@ tmp/
 *.tmp
 *.bak
 *.zip
+
+# ---------- 本地密钥：只留模板，真实值不进仓库 ----------
+secrets.h
+firmware/app_f1/main/secrets.h
+.env
+*.local.ets
