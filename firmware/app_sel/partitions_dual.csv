@@ -1,31 +1,49 @@
-# EVA 双程序分区表（32 MB Flash）
+# EVA / F1 / MotoNav 三程序分区表（32 MB Flash）
 #
-# 设计：三个 app + 一个导航备份槽 + 两套独立 storage
-#   app_sel   = factory 槽：启动选择器（每次上电第一站）
-#   app_nav   = ota_0    ：EVA 导航
-#   app_navbk = ota_1    ：导航备份（保留原来的 A/B 回滚能力）
-#   app_f1    = ota_2    ：F1 看板
+# 结构：factory 选择器 + 三个 ota 槽 + 两套独立文件系统 + MotoNav 的 fat 资源卷
+#   app_sel   = factory   ：启动选择器（每次上电第一站，永远是它）
+#   app_nav   = ota_0     ：EVA 导航（镜像 3.50 MB，槽 5 MB 留升级余量）
+#   app_f1    = ota_1     ：F1 看板（镜像 1.37 MB，槽 2 MB）
+#   app_moto  = ota_2     ：MotoNav（有效镜像 1.50 MB，按原 3 MB 整槽写入）
+#   ffat      = data/fat  ：MotoNav 的 Arduino FFat 资源卷
+#                           label 必须叫 ffat、subtype 必须 0x81(fat)，否则它找不着卷
+#   storage   = data/spiffs：EVA 导航的 littlefs，label 写死在固件里不能改；
+#                           偏移 0x1220000 刻意保持原样 —— 板上已有的离线地图/字体
+#                           全部原地保留，不用重做
+#   storage_f1= data/spiffs：F1 自己的文件系统
+#
+# 容量账（0x20000–0x1220000 共 18 MB，全部分完，末端正好接上 storage）：
+#   0x020000  app_sel   2 MB
+#   0x220000  app_nav   5 MB
+#   0x720000  app_f1    2 MB
+#   0x920000  app_moto  3 MB
+#   0xC20000  ffat      6 MB
+#   = 0x1220000  storage 起点（不动）
+#
+# 相对旧版（三槽 + 未启用的 app_navbk）的变化：
+#   1) 拆掉 app_navbk 备份槽（导航失去 A/B 回滚能力，出问题直接重烧）；
+#      省出的 5 MB 给了 app_f1(2 MB) + app_moto(3 MB)
+#   2) app_sel 由 3 MB 缩到 2 MB、app_navbk 让出的余量再切 6 MB 给 ffat
+#   3) MotoNav 整包烧录时把 otadata 挪到了 0xE000，本表把它收回 0xF000；
+#      切表时必须把 0xE000–0x12000 这段一并擦净
 #
 # 启动约定（关键）：
-#   - 选择器点选后写 otadata 指向目标槽并重启；
-#   - 导航 / F1 启动后第一件事把 otadata 写回 factory，
-#     因此下一次断电重启必然回到选择界面。
-#
-# 命名约束：
-#   storage 这个名字不能改 —— 导航侧 littlefs 的 partition label 写死为 "storage"；
-#   F1 用 storage_f1，避免两套程序互擦文件系统。
+#   选择器启动后第一件事就把 otadata 写回 factory（自己擦自己的引导记录），
+#   因此不管子程序有没有自觉回跳（第三方 MotoNav 不会），
+#   下一次上电必然落回选择界面。
 #
 # 对齐约束（gen_esp32part 强制）：
-#   app 分区必须 64 KB（0x10000）对齐；data 分区 4 KB 对齐。
+#   app 分区 64 KB（0x10000）对齐；data 分区 4 KB 对齐
 #
 # Name,       Type, SubType,  Offset,     Size,      Flags
 nvs,          data, nvs,      0x9000,     0x6000,
 otadata,      data, ota,      0xf000,     0x2000,
 phy_init,     data, phy,      0x11000,    0x1000,
-app_sel,      app,  factory,  0x20000,    0x300000,
-app_nav,      app,  ota_0,    0x320000,   0x500000,
-app_navbk,    app,  ota_1,    0x820000,   0x500000,
-app_f1,       app,  ota_2,    0xD20000,   0x500000,
-storage,      data, spiffs,   0x1220000,  0xA00000,
-storage_f1,   data, spiffs,   0x1C20000,  0x200000,
-coredump,     data, coredump, 0x1E20000,  0x10000,
+app_sel,      app,  factory,  0x20000,    0x200000,
+app_nav,      app,  ota_0,    0x220000,   0x500000,
+app_f1,       app,  ota_1,    0x720000,   0x200000,
+app_moto,     app,  ota_2,    0x920000,   0x300000,
+ffat,         data, fat,      0xc20000,   0x600000,
+storage,      data, spiffs,   0x1220000,  0xa00000,
+storage_f1,   data, spiffs,   0x1c20000,  0x200000,
+coredump,     data, coredump, 0x1e20000,  0x10000,

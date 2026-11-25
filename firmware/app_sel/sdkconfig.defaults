@@ -15,6 +15,10 @@ CONFIG_ESPTOOLPY_FLASHFREQ_80M=y
 CONFIG_PARTITION_TABLE_CUSTOM=y
 CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions_dual.csv"
 
+# 三程序共存：开启 OTA rollback，第三方程序（MotoNav）没有回跳逻辑，
+# 由 bootloader 保证"只跑一个上电周期"——它从不 mark valid，下次复位即回退到 factory（选择器）
+CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y
+
 CONFIG_SPIRAM=y
 CONFIG_SPIRAM_MODE_OCT=y
 CONFIG_SPIRAM_SPEED_80M=y

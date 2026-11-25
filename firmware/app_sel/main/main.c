@@ -1,15 +1,25 @@
 /**
- * main.c — 双程序启动选择器（app_sel / factory 槽）
+ * main.c — 三程序启动选择器（app_sel / factory 槽）
  *
  * 职责只有一件事：把一次点击变成"下次启动进哪个 app"。
- *   - 界面：整屏一张 466x466 RGB565 底图（左半 EVA 紫、右半 F1 红），中线 x=233 就是点击分界；
- *   - 不写文字：靠左右两块图形辨识（用户明确要求）；
- *   - 点左半 → otadata 指向 app_nav → 重启；
- *   - 点右半 → otadata 指向 app_f1  → 重启。
+ *   - 界面：整屏一张 466x466 RGB565 底图（上半左 EVA 紫 / 右上 F1 红 / 下半 MotoNav 青），
+ *     y<233 且 x<233 → 导航，y<233 且 x>=233 → F1，y>=233 → MotoNav；
+ *   - 不写文字：靠三块图形辨识（用户明确要求）；
+ *   - 点左上 → otadata 指向 app_nav  → 重启；
+ *   - 点右上 → otadata 指向 app_f1   → 重启；
+ *   - 点下半 → otadata 指向 app_moto → 重启。
  *
- * 为什么"每次上电都回到这里"能成立：
- *   导航 / F1 启动后的第一件事是把 otadata 写回 factory（各自的 main 里各加一行），
- *   所以断电重启时 bootloader 找不到 ota 槽记录 → 落到 factory → 回到本界面。
+ * 为什么"每次上电都回到这里"能成立（关键）：
+ *   第三方 MotoNav 是 Arduino 固件，不会主动把 otadata 写回 factory。
+ *   所以不再依赖子程序自觉 —— 选择器自己一启动就把引导指针收回 factory
+ *   （pin_boot_to_self），随后点击时才写目标槽。
+ *   这样无论哪个程序退出后重启，都必然落回本界面。
+ *
+ * [坑] esp_ota_set_boot_partition(factory_partition) 在 IDF 里的实现是
+ *   "擦掉 otadata 两块扇区"，而不是写入一条 factory 记录。因此：
+ *     - 本来就没记录（首上电）时不该重复擦，用 esp_ota_get_boot_partition()
+ *       返回的 label 判断，已经是 app_sel 就直接跳过，省一次 8 KB 擦写；
+ *     - 擦完再点选目标槽，写入口是干净的，不会被旧 seq 干扰。
  *
  * 安全边界：
  *   esp_ota_set_boot_partition() 会先校验目标镜像，槽里没有可启动固件时返回
@@ -33,10 +43,12 @@ static const char *TAG = "sel";
 
 #define SEL_W            466
 #define SEL_H            466
-#define SEL_SPLIT_X      (SEL_W / 2)   /* 233：左右半圆分界线 */
+#define SEL_SPLIT_X      (SEL_W / 2)   /* 233：上半左右分界 */
+#define SEL_SPLIT_Y      (SEL_H / 2)   /* 233：上半两格 / 下半整块 分界 */
 
 #define SEL_TARGET_NAV   "app_nav"
 #define SEL_TARGET_F1    "app_f1"
+#define SEL_TARGET_MOTO  "app_moto"
 #define SEL_TARGET_SELF  "app_sel"
 
 /* 底图由 CMake 的 EMBED_FILES 编进固件，符号名取 basename */
@@ -78,6 +90,41 @@ static bool boot_into(const char *label)
              (unsigned long)p->address, (unsigned long)p->size);
     esp_restart();
     return true;   /* 不可达 */
+}
+
+/* 把引导指针收回 factory（自己），保证下一次上电一定回到本界面。
+ *
+ * 为什么必须由选择器来做：MotoNav 是第三方 Arduino 固件，不会像导航/F1 那样
+ * 在启动时写回 factory。只要它自己被 bootloader 选中过，otadata 就停在 ota_2。
+ *
+ * 这条只是"选择器自己启动时兜底"。真正保证 MotoNav 也回得来的是 bootloader 的
+ * rollback：选择器写槽时记录 state=NEW（sdkconfig 里 CONFIG_BOOTLOADER_APP_ROLLBACK_ENABLE=y），
+ * 程序启动后变 PENDING_VERIFY，谁都没 mark valid，下次复位 bootloader 就把它标 ABORTED
+ * 并回退 factory —— 实测 MotoNav 只能跑一个上电周期，重启必回选择器。
+ *
+ * 对 factory 分区，esp_ota_set_boot_partition() 的实现是"擦掉 otadata 两块扇区"
+ * 而不是写一条 factory 记录，所以先看现有记录指向谁，已经指向自己就跳过，
+ * 避免每次上电都白擦 8 KB。 */
+static void pin_boot_to_self(void)
+{
+    const esp_partition_t *self = find_app(SEL_TARGET_SELF);
+    if (self == NULL) {
+        ESP_LOGE(TAG, "分区 %s 不存在：分区表没按 partitions_dual.csv 烧？", SEL_TARGET_SELF);
+        return;
+    }
+
+    const esp_partition_t *boot = esp_ota_get_boot_partition();
+    if (boot != NULL && strcmp(boot->label, SEL_TARGET_SELF) == 0) {
+        return;   /* 已指向 factory，无需擦写 */
+    }
+
+    esp_err_t err = esp_ota_set_boot_partition(self);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "收回引导指针失败 %s: %s", SEL_TARGET_SELF, esp_err_to_name(err));
+    } else {
+        ESP_LOGI(TAG, "引导指针已收回 %s（原指向 %s）", SEL_TARGET_SELF,
+                 boot ? boot->label : "无记录");
+    }
 }
 
 /* BSP v3 的 bsp_display_lock(ms>0) 是「等到超时」；传 0 等于不等待。
@@ -135,7 +182,16 @@ static void on_screen_clicked(lv_event_t *e)
 
     lv_point_t pt;
     lv_indev_get_point(indev, &pt);
-    const char *target = (pt.x < SEL_SPLIT_X) ? SEL_TARGET_NAV : SEL_TARGET_F1;
+
+    /* 三分法：下半整块给 MotoNav，上半再左右二分给导航 / F1 */
+    const char *target;
+    if (pt.y >= SEL_SPLIT_Y) {
+        target = SEL_TARGET_MOTO;
+    } else if (pt.x < SEL_SPLIT_X) {
+        target = SEL_TARGET_NAV;
+    } else {
+        target = SEL_TARGET_F1;
+    }
     ESP_LOGI(TAG, "点击 (%d,%d) → %s", (int)pt.x, (int)pt.y, target);
 
     s_busy = true;
@@ -185,7 +241,8 @@ static void build_ui(void)
     lv_obj_add_event_cb(scr, on_screen_clicked, LV_EVENT_CLICKED, NULL);
 
     bsp_display_unlock();
-    ESP_LOGI(TAG, "界面已建立：整屏底图 + 左右分界 x=%d", SEL_SPLIT_X);
+    ESP_LOGI(TAG, "界面已建立：三分底图分界 x=%d y=%d（上左导航 / 上右F1 / 下MotoNav）",
+             SEL_SPLIT_X, SEL_SPLIT_Y);
 }
 
 void app_main(void)
@@ -218,9 +275,9 @@ void app_main(void)
     ESP_LOGI(TAG, "运行分区=%s  启动记录=%s",
              run ? run->label : "?", boot ? boot->label : "?");
 
-    if (boot != NULL && strcmp(boot->label, SEL_TARGET_SELF) != 0) {
-        ESP_LOGW(TAG, "启动记录指向 %s（不是选择器），目标程序可能没写回 factory", boot->label);
-    }
+    /* 先把引导指针收回自己，再画界面 —— 这样即使后面点击失败/重启，
+     * 下一次上电也一定还是选择器 */
+    pin_boot_to_self();
 
     build_ui();
 
