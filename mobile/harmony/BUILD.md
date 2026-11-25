@@ -73,6 +73,11 @@ DevEco 26 的「自动签名」**不写 build-profile.json5**，而是写到工�
 签名产物：`entry-default-signed.hap`（190,685 B）→ `hdc install -r` 成功；
 设备上包名 `com.evanav.harmony`，桌面名 `EVA Nav`。
 
+> 2026-11-25 现状：`.sign/` 已随旧构建副本一起清掉，证书材料（p12/cer/csr/p7b）仍在
+> `C:\Users\Administrator\.ohos\config\`，命令行只会产出 unsigned 包。
+> 在 DevEco 里重做一次「Project Structure → Signing Configs → 自动生成签名」即可恢复，
+> 之后 `tools\build_harmony.ps1` 能直接签出可装机包。
+
 装机与调试命令（实测可用）：
 
 ```powershell
@@ -93,7 +98,9 @@ $hdc="D:\Huawei\DevEcoStudio\sdk\default\openharmony\toolchains\hdc.exe"
 2. **手机**：打开开发者模式 + USB 调试，插上后 `hdc list targets` 应能看到设备；
    然后我要读 `const.ohos.apiversion` 确认这台「鸿蒙7」的 API 级别，
    决定 `compatibleSdkVersion` 从现在的 `5.0.0(12)` 是否要提高。
-3. **高德 Web 服务 Key**：填进 `entry/src/main/ets/common/Config.ets` 的 `AMAP_WEB_KEY`。
+3. **高德 Web 服务 Key**：已填入 `entry/src/main/ets/common/Config.ets` 的 `AMAP_WEB_KEY`
+   （本机真值，文件带 `assume-unchanged`，不进仓库）。构建前跑 `tools\build_harmony.ps1`
+   会自动自检这一步：占位值直接拦下，构建后再解包反查 Key 是否真进了 `modules.abc`。
 4. **受限权限（ACL）**：`LOCATION_IN_BACKGROUND`、`READ_HEALTH_DATA` 已在 module.json5 里注释掉，
    拿到 ACL 后再放开；不放开时锁屏后定位会被冻结，30 s 校准会断。
 5. **健康数据类型 ID**：SDK 只给了 `DataType{id:number}`，没给常量；
