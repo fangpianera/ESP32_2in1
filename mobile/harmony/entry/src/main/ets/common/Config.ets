@@ -25,7 +25,7 @@ export class AppCfg {
    *      让 git 不再跟踪这处改动（要撤销跟踪用 --no-assume-unchanged）。
    * 值为 PASTE_ 开头时，EvaNavCoordinator 会自动跳过在线底图，只画离线折线。
    */
-  static readonly AMAP_WEB_KEY: string = 'PASTE_AMAP_WEB_KEY';
+  static readonly AMAP_WEB_KEY: string = 'PASTE_AMAP_WEB_KEY';   /* 本机真值，已 assume-unchanged，勿提交 */
 
   /** 无 GPS 时的手动兜底身高（cm），0 表示不启用 */
   static readonly MANUAL_HEIGHT_CM: number = 172;
@@ -33,16 +33,22 @@ export class AppCfg {
   static readonly MANUAL_SEX: string = 'm';
 
   /**
-   * 系统定位的坐标系：国内华为/国行机的 geoLocationManager 直出即为 GCJ-02（高德坐标）。
-   * 把它再按"WGS-84 → GCJ-02"转一次，会平白多偏一段：海拉尔 574 m / 北京 555 m
-   * （离线按同一套公式算得，见 tests/coord_probe.py）。
-   * 这就是"App 地图与实际路线整体偏移"的来源。
+   * 系统定位的坐标系，决定要不要再做一次 WGS-84 → GCJ-02。
    *
-   * true  = 直出即高德坐标，不再转换（默认，国内机型正确）
-   * false = 按 WGS-84 处理，做一次转换（境外机型/纯 GNSS 场景）
+   * 【2026-11-25 本机实测】华为 VOL-AL00（HarmonyOS 7 / API 26）的 geoLocationManager
+   * 直出的是 WGS-84：原始 49.196543,119.756550 距纪委监委办公楼 614 m，
+   * 按本文件同一套公式转一次得到 49.198487,119.763904，误差降到 41 m。
+   * 所以本机默认 false（转一次）。
+   *
+   * 部分国行机型的直出值本身已是 GCJ-02，那时要设 true（或 App 内点「切换」），
+   * 否则会反向偏 500 多米。判定方法：看界面「坐标」行的「两种模式差 XXX m」，
+   * 以及切换后定位点是否落在脚下。
+   *
+   * true  = 直出即高德坐标，不再转换
+   * false = 按 WGS-84 处理，做一次转换（默认，本机实测正确）
    * 运行时可在 App 里一键切换，选择会落盘记住。
    */
-  static readonly LOC_SYS_IS_GCJ02: boolean = true;
+  static readonly LOC_SYS_IS_GCJ02: boolean = false;
 
   /** 目的地搜索半径（米）：只在附近搜，省掉每次手打城市名 */
   static readonly SEARCH_RADIUS_M: number = 100000;

@@ -30,7 +30,7 @@ const PREF_NAME: string = 'evanav';
 const PREF_ROUTE: string = 'route_json';
 const PREF_DEST: string = 'route_dest';
 const PREF_HEIGHT: string = 'height_cm';
-const PREF_COORD: string = 'loc_gcj_direct';
+const PREF_COORD: string = 'loc_gcj_direct_v2';   // 换 key 让旧版存下的相反设定失效
 
 @Entry
 @Component
