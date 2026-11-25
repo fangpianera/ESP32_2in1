@@ -9,7 +9,13 @@
  *
  * 坐标：高德底图与路线都是 GCJ-02，两者在同一坐标空间，投影像素直接对得上。
  *   px = (lon+180)/360 * world，py = (1 - ln(tan(lat)+sec(lat))/PI)/2 * world，
- *   world = 256 * 2^zoom（高德 256px 瓦片，scale=1）。
+ *   world = TILE * 2^zoom。
+ *
+ * 【瓦片口径 = 512，不是 256】[实测 2026-11-25] 用 v3/staticmap 的 markers 参数在同一张
+ *   底图上打两个已知点（同经度、纬度差 0.01°），zoom=13 实测像素差 178 px、
+ *   zoom=14 实测 179 px（Δlat 0.005°），两次都正好是 256 口径理论值 89.2 px 的 2.00 倍。
+ *   说明 size=900*600&scale=1 时高德按 512 px 瓦片渲染。以前按 256 算，等于把折线和
+ *   起终点标记的整体位移缩小一半 —— 起点在中心看不出来，越远越偏，终点偏得最明显。
  *
  * 网络前提：本模块必须联网（手机蜂窝/家用 Wi-Fi）。连着板端热点（无外网）时
  * 会失败，调用方要在此之前拦住并给出提示，见 Index.ets 的两阶段流程。
@@ -55,6 +61,11 @@ export class MapPreview {
   /** 底图请求尺寸（固定 3:2，UI 用 aspectRatio(1.5) 对齐，避免拉伸导致折线错位） */
   static readonly W: number = 900;
   static readonly H: number = 600;
+  /**
+   * 底图瓦片像素口径。[实测] 高德 v3/staticmap 在 size=900*600&scale=1 下按 512 px 瓦片渲染，
+   * 若按 256 计算，折线与标记的整体位移会只剩一半（离中心越远偏得越多）。
+   */
+  static readonly TILE: number = 512;
 
   /**
    * @param fetchImage false 时只算投影、不下载底图（离线恢复路线时用，
@@ -77,7 +88,7 @@ export class MapPreview {
     const pad: number = 56;
     let z: number = 17;
     while (z > 8) {
-      const world: number = 256 * Math.pow(2, z);
+      const world: number = MapPreview.TILE * Math.pow(2, z);
       const ax: number = MapPreview.px(pts[0].lon, world);
       const ay: number = MapPreview.py(pts[0].lat, world);
       let halfX: number = 0;
@@ -95,7 +106,7 @@ export class MapPreview {
     }
     plan.zoom = z;
 
-    const world: number = 256 * Math.pow(2, z);
+    const world: number = MapPreview.TILE * Math.pow(2, z);
     // 中心点固定取起点（当前位置）：经度直接取，纬度经墨卡托反算保持比例一致
     const cLon: number = pts[0].lon;
     const cyPx: number = MapPreview.py(pts[0].lat, world);
