@@ -33,6 +33,9 @@ export class MapPlan {
   /** 归一化坐标 0..1（相对底图宽高），Canvas 直接用 */
   fx: number[] = [];
   fy: number[] = [];
+  /** 参照点（换一种坐标处理后应落的位置），-1 表示不画 */
+  refFx: number = -1;
+  refFy: number = -1;
   ok: boolean = false;
   note: string = '';
   zoom: number = 14;
@@ -41,6 +44,8 @@ export class MapPlan {
     this.pix = null;
     this.fx = [];
     this.fy = [];
+    this.refFx = -1;
+    this.refFy = -1;
     this.ok = false;
     this.note = '';
   }
@@ -54,40 +59,36 @@ export class MapPreview {
   /**
    * @param fetchImage false 时只算投影、不下载底图（离线恢复路线时用，
    *                   这样没网也能在 Canvas 上画出荧光绿折线）
+   * @param ref 参照点：另一种坐标处理下的位置，会单独标一个空心圈用于对照
+   *
+   * 视野：底图中心固定取整条路线的第一个点（= 当前位置），这样紫点永远在正中，
+   * 一眼就能看出"我在哪"。zoom 仍按整条路线的包围盒选，保证起终点都进画布。
    */
-  static async build(key: string, pts: LatLon[], fetchImage: boolean = true): Promise<MapPlan> {
+  static async build(key: string, pts: LatLon[], fetchImage: boolean = true,
+                     ref?: LatLon): Promise<MapPlan> {
     const plan = new MapPlan();
     if (pts.length < 2) {
       plan.note = '路线点不足，无法出图';
       return plan;
     }
 
-    let minLat: number = pts[0].lat;
-    let maxLat: number = pts[0].lat;
-    let minLon: number = pts[0].lon;
-    let maxLon: number = pts[0].lon;
-    for (let i = 1; i < pts.length; i++) {
-      const p = pts[i];
-      if (p.lat < minLat) minLat = p.lat;
-      if (p.lat > maxLat) maxLat = p.lat;
-      if (p.lon < minLon) minLon = p.lon;
-      if (p.lon > maxLon) maxLon = p.lon;
-    }
-    if (Math.abs(maxLat - minLat) < 1e-7 && Math.abs(maxLon - minLon) < 1e-7) {
-      minLat -= 0.002;
-      maxLat += 0.002;
-      minLon -= 0.002;
-      maxLon += 0.002;
-    }
-
-    // ---- 选 zoom：从 17 往下退，直到整条路线塞进底图（四周留 28px 边） ----
+    // ---- 选 zoom：以起点为中心，从 17 往下退，直到最远的那一点也进画布 ----
+    // （起终点完全重合时 halfX/halfY 都是 0，直接停在 zoom 17，中心就是脚下）
     const pad: number = 56;
     let z: number = 17;
     while (z > 8) {
       const world: number = 256 * Math.pow(2, z);
-      const spanX: number = Math.abs(MapPreview.px(maxLon, world) - MapPreview.px(minLon, world));
-      const spanY: number = Math.abs(MapPreview.py(minLat, world) - MapPreview.py(maxLat, world));
-      if (spanX <= MapPreview.W - pad && spanY <= MapPreview.H - pad) {
+      const ax: number = MapPreview.px(pts[0].lon, world);
+      const ay: number = MapPreview.py(pts[0].lat, world);
+      let halfX: number = 0;
+      let halfY: number = 0;
+      for (let i = 1; i < pts.length; i++) {
+        const dx: number = Math.abs(MapPreview.px(pts[i].lon, world) - ax);
+        const dy: number = Math.abs(MapPreview.py(pts[i].lat, world) - ay);
+        if (dx > halfX) halfX = dx;
+        if (dy > halfY) halfY = dy;
+      }
+      if (halfX * 2 <= MapPreview.W - pad && halfY * 2 <= MapPreview.H - pad) {
         break;
       }
       z--;
@@ -95,10 +96,10 @@ export class MapPreview {
     plan.zoom = z;
 
     const world: number = 256 * Math.pow(2, z);
-    // 中心点：经度直接取中点；纬度要在墨卡托空间取中点再反算（否则高纬会偏）
-    const cLon: number = (minLon + maxLon) / 2;
-    const cyPx: number = (MapPreview.py(minLat, world) + MapPreview.py(maxLat, world)) / 2;
-    const cLat: number = MapPreview.latFromPy(cyPx, world);
+    // 中心点固定取起点（当前位置）：经度直接取，纬度经墨卡托反算保持比例一致
+    const cLon: number = pts[0].lon;
+    const cyPx: number = MapPreview.py(pts[0].lat, world);
+    const cLat: number = pts[0].lat;
     const cxPx: number = MapPreview.px(cLon, world);
 
     const url: string = `https://restapi.amap.com/v3/staticmap?location=${cLon.toFixed(6)},${cLat.toFixed(6)}` +
@@ -139,6 +140,10 @@ export class MapPreview {
       const p = pts[i];
       plan.fx.push(0.5 + (MapPreview.px(p.lon, world) - cxPx) / MapPreview.W);
       plan.fy.push(0.5 + (MapPreview.py(p.lat, world) - cyPx) / MapPreview.H);
+    }
+    if (ref !== undefined) {
+      plan.refFx = 0.5 + (MapPreview.px(ref.lon, world) - cxPx) / MapPreview.W;
+      plan.refFy = 0.5 + (MapPreview.py(ref.lat, world) - cyPx) / MapPreview.H;
     }
     plan.ok = plan.pix !== null;
     plan.note = fetchImage ? `zoom=${z}  ${pts.length} 点` : `离线投影 zoom=${z}  ${pts.length} 点`;

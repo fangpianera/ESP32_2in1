@@ -16,7 +16,8 @@ import { BleLink } from './BleLink';
 import { LocationService } from './LocationService';
 import { HealthStride } from './HealthStride';
 import { AmapRoute, RouteResult } from './AmapRoute';
-import { MapPlan, MapPreview } from './MapPreview';
+import { MapPlan, MapPreview, LatLon } from './MapPreview';
+import { CoordConv } from '../common/CoordConv';
 import { WeatherService } from './WeatherService';
 import { AppCfg, BoardCfg } from '../common/Config';
 
@@ -292,7 +293,16 @@ export class EvaNavCoordinator {
       const amap = new AmapRoute(this.amapKey);
       const r = await amap.fetchRoute(originLat, originLon, destLat, destLon);
       this.cachedRoute = r;
-      const plan = await MapPreview.build(this.amapKey, r.pts);
+      // 对照点：用相反的坐标处理算一次，地图上单独标空圈，方便肉眼判断哪个落在脚下
+      let ref: LatLon | undefined = undefined;
+      if (!manual) {
+        // 当前用直出值 → 对照是"再换算一次"；当前用换算后的值 → 对照是"系统直出原值"
+        const alt: number[] = this.loc.gcjDirect
+          ? CoordConv.wgs84ToGcj02(originLat, originLon)
+          : CoordConv.gcj02ToWgs84(originLat, originLon);
+        ref = new LatLon(alt[0], alt[1]);
+      }
+      const plan = await MapPreview.build(this.amapKey, r.pts, true, ref);
       if (plan.ok) {
         this.status(`路线就绪 · ${this.routeSummary()} · 地图 ${plan.note}`);
       } else {

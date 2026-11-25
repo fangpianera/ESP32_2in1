@@ -30,7 +30,7 @@ const PREF_NAME: string = 'evanav';
 const PREF_ROUTE: string = 'route_json';
 const PREF_DEST: string = 'route_dest';
 const PREF_HEIGHT: string = 'height_cm';
-const PREF_COORD: string = 'loc_gcj_direct_v2';   // 换 key 让旧版存下的相反设定失效
+const PREF_COORD: string = 'loc_gcj_direct_v4';   // 换 key 让上一版落盘的设定失效
 
 @Entry
 @Component
@@ -76,6 +76,9 @@ struct Index {
   /** 归一路线点（0..1），Canvas 绘制前按控件尺寸乘开放大 */
   private mfx: number[] = [];
   private mfy: number[] = [];
+  /** 对照点（另一种坐标处理的落点），-1 表示不画 */
+  private mrefX: number = -1;
+  private mrefY: number = -1;
 
   aboutToAppear(): void {
     this.co.onStatus = (t: string): void => {
@@ -115,6 +118,8 @@ struct Index {
     this.co.onMapPlan = (plan: MapPlan): void => {
       this.mfx = plan.fx;
       this.mfy = plan.fy;
+      this.mrefX = plan.refFx;
+      this.mrefY = plan.refFy;
       this.hasLine = plan.fx.length >= 2;
       this.mapPix = plan.pix;
       this.mapNote = plan.ok ? `AMAP STATIC · ${plan.note}` : `折线就绪（无底图）· ${plan.note}`;
@@ -466,7 +471,7 @@ struct Index {
 
   private coordLabel(): string {
     const d = Math.round(this.coordDelta);
-    const head = this.coordDelta > 200 ? ` · 两种模式差 ${d} m` : '';
+    const head = this.coordDelta > 200 ? ` · 青十字为另一模式，差 ${d} m` : '';
     return this.gcjDirect
       ? `GCJ 直出（系统已是高德坐标，不再转换）${head}`
       : `WGS → GCJ（系统给 WGS，转换一次）${head}`;
@@ -533,6 +538,23 @@ struct Index {
     this.cctx.beginPath();
     this.cctx.arc(ex, ey, 3, 0, Math.PI * 2);
     this.cctx.fill();
+
+    // 4) 对照点（青）：另一种坐标处理下的落点，用来一眼判断这机器要不要换算
+    if (this.mrefX >= -0.2 && this.mrefX <= 1.2 && this.mrefY >= -0.2 && this.mrefY <= 1.2) {
+      const rx = this.mrefX * w;
+      const ry = this.mrefY * h;
+      this.cctx.strokeStyle = '#00E5C0';
+      this.cctx.lineWidth = 2;
+      this.cctx.beginPath();
+      this.cctx.arc(rx, ry, 9, 0, Math.PI * 2);
+      this.cctx.stroke();
+      this.cctx.beginPath();
+      this.cctx.moveTo(rx - 14, ry);
+      this.cctx.lineTo(rx + 14, ry);
+      this.cctx.moveTo(rx, ry - 14);
+      this.cctx.lineTo(rx, ry + 14);
+      this.cctx.stroke();
+    }
   }
 
   private polyline(w: number, h: number): void {

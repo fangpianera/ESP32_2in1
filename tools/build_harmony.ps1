@@ -62,7 +62,7 @@ if (-not (Test-Path $jp)) {
 $env:DEVECO_SDK_HOME = Join-Path $deveco 'sdk'
 $env:NODE_PATH        = Join-Path $deveco 'tools\hvigor\node_modules'
 $env:JAVA_HOME        = Join-Path $deveco 'jbr'
-$env:PATH             = "$(Join-Path $deveco 'jbr\bin');$(Join-Path $deveco 'tools\node');$(Join-Path $deveco 'tools\ohpm\bin');$env:PATH"
+$env:PATH             = "$(Join-Path $deveco 'jbr\bin');$(Join-Path $deveco 'tools\node');$(Join-Path $deveco 'tools\ohpm\bin');C:\Windows\System32;C:\Windows;C:\Windows\System32\Wbem;$env:PATH"
 
 # ---------- 3. 构建 ----------
 Push-Location $proj
